@@ -99,6 +99,16 @@ lefttee/
 
 先在终端执行 `gh auth status` 确认已登录有写权限的 GitHub 账号，然后重启建站台再发布。也可以在目标仓库里配置好凭据后手动 `git push`。
 
+**推送超时 / 连不上 github.com**
+
+建站台使用 git 推送，不会自动读取系统代理。如果浏览器能打开 GitHub 但推送超时，请给 git 设置代理（端口按自己的代理工具调整）：
+
+```bash
+git config --global http.proxy http://127.0.0.1:7897
+# 取消代理
+git config --global --unset http.proxy
+```
+
 **端口被占用**
 
 ```bash
