@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>建站台 · 个人站</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.staticfile.org/marked/12.0.0/marked.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/studio/">个人站<span>建站台</span></a>
+    <nav class="view-tabs" id="viewTabs">
+      <button class="view-tab active" data-studio-view="articles" type="button">文章</button>
+      <button class="view-tab" data-studio-view="songs" type="button">歌曲</button>
+      <button class="view-tab" data-studio-view="layout" type="button">首页</button>
+      <button class="view-tab" data-studio-view="site" type="button">站点</button>
+      <button class="view-tab" data-studio-view="qa" type="button">问答</button>
+    </nav>
+    <div class="top-actions">
+      <span class="sync-pill" id="syncPill">数据已同步</span>
+      <button class="btn ghost" id="buildBtn" type="button">重新生成数据</button>
+    </div>
+  </header>
+
+  <div class="layout" id="articlesView">
+    <aside class="sidebar">
+      <div class="side-top">
+        <div class="side-title">文章 <em id="postTotal">0</em></div>
+        <button class="btn primary block" id="newBtn" type="button">＋ 新建文章</button>
+        <input class="search" id="searchInput" type="search" placeholder="搜索标题 / 分类 / 摘要">
+      </div>
+      <ol class="post-list" id="postList"></ol>
+      <div class="side-empty" id="sideEmpty" hidden>还没有文章，点上方按钮开始写。</div>
+    </aside>
+
+    <main class="workspace">
+      <section class="placeholder" id="placeholder">
+        <h1>开始写作</h1>
+        <p>左侧选择一篇文章，或新建一篇。保存时会自动生成 <code>blog/posts-data.js</code> 并建立文章目录，不需要再手动建文件夹、跑脚本。</p>
+        <p>写完点右下角「发布到仓库」，确认后才会 commit + push。</p>
+        <div class="shortcuts">
+          快捷键：<kbd>⌘ S</kbd> 保存 · <kbd>⌘ B</kbd> 加粗 · 图片可直接拖进编辑区
+        </div>
+      </section>
+
+      <section class="editor" id="editor" hidden>
+        <div class="meta">
+          <input class="title-input" id="fieldTitle" placeholder="文章标题">
+          <div class="meta-row">
+            <label>日期<input type="date" id="fieldDate"></label>
+            <label>分类<input type="text" id="fieldCategory" placeholder="随笔 / 技术 / 资源"></label>
+            <label class="grow">摘要<input type="text" id="fieldSummary" placeholder="一句话摘要，显示在归档列表"></label>
+          </div>
+          <div class="path-row">
+            <span class="path" id="postPath"></span>
+            <span class="dirty-dot" id="dirtyFlag" hidden>未保存</span>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="view-switch" role="group" aria-label="视图">
+            <button data-view="edit" type="button">编辑</button>
+            <button data-view="split" type="button">双栏</button>
+            <button data-view="preview" type="button">预览</button>
+          </div>
+          <div class="tools">
+            <button data-insert="heading" type="button" title="小标题">H2</button>
+            <button data-insert="bold" type="button" title="加粗"><b>B</b></button>
+            <button data-insert="link" type="button" title="链接">链接</button>
+            <button data-insert="code" type="button" title="代码块">&lt;/&gt;</button>
+            <button data-insert="quote" type="button" title="引用">引用</button>
+            <button data-insert="table" type="button" title="表格">表格</button>
+            <button id="imageBtn" type="button" title="插入图片">图片</button>
+            <input type="file" id="fileInput" accept="image/*" multiple hidden>
+          </div>
+          <div class="tools right">
+            <button class="btn primary" id="saveBtn" type="button">保存</button>
+          </div>
+        </div>
+
+        <div class="panes split" id="panes">
+          <textarea class="editor-pane" id="contentInput" spellcheck="false" placeholder="正文支持 Markdown：标题、列表、表格、代码块、图片…"></textarea>
+          <div class="preview-pane" id="previewPane">
+            <article class="md" id="preview"></article>
+          </div>
+        </div>
+
+        <div class="images-bar" id="imagesBar" hidden>
+          <div class="images-head">文章图片 <em id="imageCount">0</em><span>点击插入到正文</span></div>
+          <div class="images" id="imageList"></div>
+        </div>
+
+        <div class="editor-foot">
+          <span id="charCount">0 字</span>
+          <div class="foot-actions">
+            <button class="btn ghost" id="revealBtn" type="button">Finder</button>
+            <button class="btn danger" id="deleteBtn" type="button">删除</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="admin-view" id="songsView" hidden>
+    <div class="admin-head">
+      <div>
+        <div class="admin-kicker">TRACKS</div>
+        <h1>歌曲管理</h1>
+        <p>添加的歌曲写入 <code>album/songs.js</code>，音乐页按照这里的顺序播放。选择 mp3 会自动读取标题、歌手和内嵌封面，确认后点「发布歌曲」推送生效。</p>
+      </div>
+      <div class="git-actions">
+        <button class="btn ghost" id="songsRefreshBtn" type="button">刷新</button>
+        <button class="btn primary" id="songsPublishBtn" type="button">发布歌曲</button>
+      </div>
+    </div>
+
+    <div class="song-admin-grid">
+      <section class="panel song-form">
+        <h2>添加歌曲</h2>
+        <label>歌名<input id="songTitle" placeholder="例如：告死鸟"></label>
+        <label>歌手<input id="songArtist" placeholder="例如：ilem"></label>
+        <label>歌曲 ID（可留空自动生成）<input id="songId" placeholder="gaosi"></label>
+        <label>MP3 文件（自动读取信息）<input type="file" id="songAudioFile" accept=".mp3,audio/mpeg"></label>
+        <label>音频（album/）<select id="songAudio"></select></label>
+        <label>封面（可选，无内嵌封面时上传）<input type="file" id="songCoverFile" accept="image/*"></label>
+        <label>封面（album/cover/）<select id="songCover"></select></label>
+        <img class="song-cover-preview" id="songCoverPreview" alt="封面预览" hidden>
+        <button class="btn primary" id="songAddBtn" type="button">加入播放列表</button>
+        <p class="hint" id="songFormHint">选择 mp3 后会自动填写歌名、歌手并提取专辑封面（不超过 100MB）。</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>播放顺序</h2><em id="songCount">0 首</em></div>
+        <ul class="song-admin-list" id="songList"></ul>
+        <div class="empty-state" id="songEmpty" hidden>还没有歌曲，先在左侧添加一首。</div>
+        <p class="hint">用 ↑ ↓ 调整顺序，改动会立即写入 songs.js，然后点右上角「发布歌曲」。</p>
+      </section>
+    </div>
+    <pre class="publish-log" id="songsLog" hidden></pre>
+  </div>
+
+  <div class="admin-view" id="layoutView" hidden>
+    <div class="admin-head">
+      <div>
+        <div class="admin-kicker">HOME LAYOUT</div>
+        <h1>首页板块编排</h1>
+        <p>勾选决定首页显示哪些板块，用 ↑ ↓ 调整顺序。改动写入 <code>site-layout.js</code>，保存后再点「发布首页」。</p>
+      </div>
+      <div class="git-actions">
+        <button class="btn ghost" id="layoutRefreshBtn" type="button">刷新</button>
+        <button class="btn primary" id="layoutPublishBtn" type="button">发布首页</button>
+      </div>
+    </div>
+
+    <div class="song-admin-grid">
+      <section class="panel">
+        <div class="panel-head"><h2>板块顺序</h2><em id="layoutCount">0 个</em></div>
+        <ul class="layout-list" id="layoutList"></ul>
+        <p class="hint">取消勾选即从首页隐藏，板块内容和文章都不会被删除。</p>
+        <button class="btn primary block" id="layoutSaveBtn" type="button">保存编排</button>
+      </section>
+
+      <section class="panel">
+        <h2>板块内容</h2>
+        <div id="layoutFields"></div>
+        <p class="hint" id="layoutHint">保存编排后，点右上角「发布首页」才会更新到线上。</p>
+      </section>
+    </div>
+    <pre class="publish-log" id="layoutLog" hidden></pre>
+  </div>
+
+  <div class="admin-view" id="siteView" hidden>
+    <div class="admin-head">
+      <div>
+        <div class="admin-kicker">SITE / PAGES</div>
+        <h1>站点与页面设置</h1>
+        <p>品牌、导航、页脚以及欢迎页 / 音乐页的文案统一存放在 <code>site-config.js</code>。保存后点「发布站点」才会推送到仓库。</p>
+      </div>
+      <div class="git-actions">
+        <button class="btn ghost" id="siteRefreshBtn" type="button">刷新</button>
+        <button class="btn primary" id="sitePublishBtn" type="button">发布站点</button>
+      </div>
+    </div>
+
+    <div class="site-grid">
+      <section class="panel">
+        <h2>品牌与导航</h2>
+        <label class="layout-field">站点名称<input id="siteBrand" maxlength="60" placeholder="我的个人站"></label>
+        <label class="layout-field">副标题<input id="siteBrandSub" maxlength="80" placeholder="PERSONAL / SITE"></label>
+        <div class="site-nav-head">导航文案</div>
+        <div id="siteNav"></div>
+        <p class="hint">导航顺序和链接是固定的，这里只修改显示的文字。</p>
+      </section>
+
+      <section class="panel">
+        <h2>页脚</h2>
+        <label class="layout-field">版权文字<input id="siteCopyright" maxlength="200" placeholder="© 2026 我的个人站"></label>
+        <div class="site-pair">
+          <label class="layout-field">关于 · 文案<input id="siteAbout" maxlength="200"></label>
+          <label class="layout-field">关于 · 链接<input id="siteAboutUrl" maxlength="200"></label>
+        </div>
+        <div class="site-pair">
+          <label class="layout-field">GitHub · 文案<input id="siteGithub" maxlength="200"></label>
+          <label class="layout-field">GitHub · 链接<input id="siteGithubUrl" maxlength="200"></label>
+        </div>
+        <div class="site-pair">
+          <label class="layout-field">联系 · 文案<input id="siteContact" maxlength="200"></label>
+          <label class="layout-field">联系 · 链接<input id="siteContactUrl" maxlength="200"></label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>欢迎页</h2>
+        <label class="layout-field">标题<input id="siteWelcomeTitle" maxlength="40" placeholder="我的个人站"></label>
+        <label class="layout-field">副标题<input id="siteWelcomeSubtitle" maxlength="60" placeholder="欢迎来到我的个人站。"></label>
+        <p class="hint">对应 <code>welcome.html</code> 首屏的大标题与副标题。</p>
+      </section>
+
+      <section class="panel">
+        <h2>音乐页</h2>
+        <label class="layout-field">页面标题<input id="siteMusicTitle" maxlength="40" placeholder="音乐专辑"></label>
+        <label class="layout-field">页面描述<textarea id="siteMusicDescription" rows="3" maxlength="200"></textarea></label>
+        <p class="hint">标题用于浏览器标签，描述用于页面 SEO 信息。</p>
+      </section>
+
+      <section class="panel">
+        <h2>仓库与部署</h2>
+        <p class="hint">站点目录：<code id="sitePath">—</code></p>
+        <div class="site-pair">
+          <label class="layout-field">当前分支<input id="siteBranch" readonly placeholder="main"></label>
+          <label class="layout-field">远程仓库<input id="siteRemote" placeholder="https://github.com/用户名/仓库.git"></label>
+        </div>
+        <div class="site-actions">
+          <button class="btn ghost" id="siteOpenBtn" type="button">打开站点</button>
+          <button class="btn primary" id="siteRemoteSaveBtn" type="button">保存仓库地址</button>
+        </div>
+        <p class="hint" id="siteDeployHint">保存后，在下方「发布到仓库」即可把站点推送到 GitHub；Cloudflare Pages、Vercel 等平台连接该仓库后会自动部署。</p>
+      </section>
+    </div>
+
+    <div class="site-actions">
+      <button class="btn primary" id="siteSaveBtn" type="button">保存设置</button>
+      <span class="hint" id="siteHint">保存写入 site-config.js，不会立即上线。</span>
+    </div>
+    <pre class="publish-log" id="siteLog" hidden></pre>
+  </div>
+
+  <div class="admin-view" id="qaView" hidden>
+    <div class="admin-head">
+      <div>
+        <div class="admin-kicker">ASK / ANSWER</div>
+        <h1>问答管理</h1>
+        <p>访客每天只能提交一个问题。只有在这里发布回答后，站点问答区才会公开显示；点赞由访客在站点端完成。</p>
+      </div>
+      <div class="git-actions">
+        <div class="qa-filters" id="qaFilters">
+          <button class="view-tab active" data-qa-filter="all" type="button">全部</button>
+          <button class="view-tab" data-qa-filter="pending" type="button">待回答</button>
+          <button class="view-tab" data-qa-filter="answered" type="button">已回答</button>
+        </div>
+        <button class="btn ghost" id="qaRefreshBtn" type="button">刷新</button>
+      </div>
+    </div>
+
+    <section class="panel qa-config-panel">
+      <div class="panel-head"><h2>站点连接</h2><em id="qaConnState">未配置</em></div>
+      <div class="qa-config-grid">
+        <label>站点地址<input id="qaUrl" placeholder="https://你的站点域名"></label>
+        <label>管理令牌<input id="qaToken" type="password" placeholder="与 Cloudflare 的 QA_ADMIN_TOKEN 一致"></label>
+      </div>
+      <div class="qa-config-actions">
+        <button class="btn primary" id="qaSaveConfigBtn" type="button">保存设置</button>
+        <span class="hint" id="qaConfigHint">令牌只保存在本地 .studio-config.json，不会提交到仓库。</span>
+      </div>
+    </section>
+
+    <div class="qa-admin-list" id="qaAdminList"></div>
+    <div class="empty-state" id="qaEmpty" hidden>还没有访客提问。</div>
+    <pre class="publish-log" id="qaLog" hidden></pre>
+  </div>
+
+  <div class="gitbar">
+    <div class="git-info">
+      <span class="dot" id="gitDot"></span>
+      <span id="gitText">正在读取仓库状态…</span>
+    </div>
+    <div class="git-actions">
+      <button class="btn ghost" id="statusBtn" type="button">刷新状态</button>
+      <button class="btn primary" id="publishBtn" type="button">发布到仓库</button>
+    </div>
+  </div>
+
+  <div class="modal" id="createModal" hidden>
+    <form class="dialog" id="createForm">
+      <h2>新建文章</h2>
+      <label>标题<input id="newTitle" required placeholder="例如：我的第一篇随笔"></label>
+      <label>日期<input type="date" id="newDate"></label>
+      <label>目录名（留空自动生成）<input id="newSlug" placeholder="2026-11-16-my-post"></label>
+      <label>分类<input id="newCategory" placeholder="随笔"></label>
+      <label>摘要<input id="newSummary" placeholder="一句话摘要"></label>
+      <p class="hint">会自动创建 <code>blog/posts/&lt;目录名&gt;/index.md</code>，并写入文章数据。</p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" data-close>取消</button>
+        <button class="btn primary" type="submit">创建</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal" id="publishModal" hidden>
+    <div class="dialog wide">
+      <h2>发布到仓库</h2>
+      <p class="hint">默认只重新生成并提交 <code>blog/</code> 下的文章、图片和文章数据；站点其他改动不会推送。推送后，连接该仓库的托管平台会自动部署。</p>
+      <ol class="change-list" id="changeList"></ol>
+      <p class="hint" id="changeHint" hidden></p>
+      <label>提交说明<input id="commitMessage"></label>
+      <label class="check"><input type="checkbox" id="publishAll"> 同时推送 blog/ 以外的站点改动（全站推送）</label>
+      <label class="check"><input type="checkbox" id="confirmPush"> 我已在本地确认页面正常，授权推送到远程仓库</label>
+      <pre class="publish-log" id="publishLog" hidden></pre>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" data-close>关闭</button>
+        <button class="btn primary" id="confirmPublish" type="button" disabled>确认发布</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="setupModal" hidden>
+    <form class="dialog wide" id="setupForm">
+      <h2>创建你的个人站</h2>
+      <p class="hint">填写站点信息后会自动生成首页、博客、音乐、问答和关于页面。目标目录必须是空目录；填了仓库地址会顺带初始化 git 并建立首个提交。</p>
+      <div class="setup-grid">
+        <label class="setup-span">目标目录<input id="setupPath" required></label>
+        <label>站点名称<input id="setupName" maxlength="40" required placeholder="例如：小林的工作室"></label>
+        <label>副标题<input id="setupSubtitle" maxlength="80" placeholder="例如：LIN / PERSONAL SITE"></label>
+        <label>昵称（关于页署名）<input id="setupAuthor" maxlength="40" placeholder="例如：小林"></label>
+        <label>欢迎页副标题<input id="setupWelcome" maxlength="60" placeholder="例如：记录技术、音乐与生活。"></label>
+        <label class="setup-span">一句话简介<textarea id="setupIntro" rows="2" maxlength="500" placeholder="显示在首页介绍和关于页"></textarea></label>
+        <label>GitHub 主页（可选）<input id="setupGithub" placeholder="https://github.com/你的用户名"></label>
+        <label>联系邮箱（可选）<input id="setupContact" placeholder="you@example.com"></label>
+        <label class="setup-span">GitHub 仓库地址（可选）<input id="setupRepo" placeholder="https://github.com/用户名/仓库.git"></label>
+      </div>
+      <pre class="publish-log" id="setupLog" hidden></pre>
+      <div class="dialog-actions">
+        <button class="btn primary" id="setupSubmit" type="submit">创建站点</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

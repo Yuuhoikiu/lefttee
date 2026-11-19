@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="默认封面">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d2a22"/>
+      <stop offset="1" stop-color="#4a6b57"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <circle cx="300" cy="285" r="150" fill="none" stroke="#c9d8cd" stroke-width="2" opacity="0.45"/>
+  <circle cx="300" cy="285" r="48" fill="#c9d8cd" opacity="0.85"/>
+  <circle cx="300" cy="285" r="14" fill="#1d2a22"/>
+  <text x="300" y="530" text-anchor="middle" fill="#c9d8cd" font-size="22" font-family="system-ui, sans-serif" letter-spacing="10" opacity="0.65">MUSIC</text>
+</svg>

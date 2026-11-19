@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{SITE_NAME}}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #1d2a22 0%, #33513f 55%, #5b7f68 100%);
+      overflow: hidden;
+      cursor: url('mouse/01.cur'), auto;
+    }
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.12), transparent 60%);
+      pointer-events: none;
+    }
+    .welcome-container {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      color: #fff;
+      padding: 1rem 20px;
+      animation: fadeIn 1.2s ease-out;
+    }
+    .title {
+      font-size: clamp(2.6rem, 9vw, 5.5rem);
+      font-weight: 700;
+      color: #bfe3c8;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      cursor: url('mouse/02.cur'), pointer;
+      transition: transform .3s ease, text-shadow .3s ease;
+      margin-bottom: .6rem;
+      word-break: break-word;
+    }
+    .title:hover {
+      transform: translateY(-5px);
+      text-shadow: 0 8px 18px rgba(0, 0, 0, 0.6);
+    }
+    .subtitle {
+      font-size: clamp(0.95rem, 2.6vw, 1.35rem);
+      color: #d6ead9;
+      opacity: .9;
+      letter-spacing: .06em;
+    }
+    .enter-tip {
+      margin-top: 2.2rem;
+      font-size: .78rem;
+      color: rgba(255, 255, 255, .55);
+      letter-spacing: .18em;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="welcome-container" onclick="enterMain()">
+    <h1 class="title">{{SITE_NAME}}</h1>
+    <p class="subtitle">{{WELCOME_SUBTITLE}}</p>
+    <p class="enter-tip">CLICK TO ENTER</p>
+  </div>
+
+  <script src="site-config.js"></script>
+  <script>
+    // 从 site-config.js 读取欢迎页文案
+    (function applySiteConfig() {
+      var config = window.SITE_CONFIG;
+      if (!config || !config.welcome) return;
+      var title = document.querySelector('.title');
+      var subtitle = document.querySelector('.subtitle');
+      if (title && config.welcome.title) title.textContent = config.welcome.title;
+      if (subtitle && config.welcome.subtitle) subtitle.textContent = config.welcome.subtitle;
+    })();
+
+    function enterMain() {
+      sessionStorage.setItem('welcomeShown', 'true');
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
