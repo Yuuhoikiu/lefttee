@@ -15,6 +15,8 @@
 - [软件使用指南](#软件使用指南)
 - [全页面信息定制化](#全页面信息定制化)
 - [接口定义与配置](#接口定义与配置)
+  - [使用示例汇总](#使用示例汇总)
+  - [注意事项](#注意事项)
 - [部署](#部署)
 - [目录结构](#目录结构)
 - [常见问题](#常见问题)
@@ -245,12 +247,14 @@ summary: 列表页显示的一句话摘要
 
 ```js
 window.MUSIC_SONGS = [
-  { "id": "song-1", "title": "歌名", "artist": "歌手", "file": "track.mp3", "cover": "cover.jpg" }
+  { "id": "song-1", "title": "歌名", "artist": "歌手", "file": "track.mp3", "cover": "album/cover/cover.jpg" }
 ];
 ```
 
 - `id` 只能包含字母、数字、`-`、`_`，用于播放计数 `play-<id>`
-- `file` 指向 `album/` 下的音频；`cover` 指向 `album/cover/` 下的图片
+- `file` 是 `album/` 下的音频文件名，支持 mp3 / ogg / wav / m4a / flac / aac
+- `cover` 是相对站点根的封面路径，形如 `album/cover/cover.jpg`，页面直接按该路径加载
+- 用写作台添加歌曲时 `artist`、`cover` 必填，且文件必须已经存在
 - 无歌曲时页面显示占位封面和「暂无歌曲」
 
 ### 关于页 `personal/index.html`
@@ -676,7 +680,7 @@ window.MUSIC_SONGS = [
 {
   "ok": true,
   "songs": [
-    { "id": "song-1", "title": "歌名", "artist": "歌手", "file": "track.mp3", "cover": "cover.jpg" }
+    { "id": "song-1", "title": "歌名", "artist": "歌手", "file": "track.mp3", "cover": "album/cover/cover.jpg" }
   ],
   "audioFiles": ["track.mp3"],
   "coverFiles": ["cover.jpg"]
@@ -687,7 +691,7 @@ window.MUSIC_SONGS = [
 | --- | --- | --- |
 | `songs[].id` | string | 唯一 ID，仅字母 / 数字 / `-` / `_` |
 | `songs[].file` | string | `album/` 下的音频文件名 |
-| `songs[].cover` | string | `album/cover/` 下的封面文件名，可为空 |
+| `songs[].cover` | string | 封面路径，形如 `album/cover/cover.jpg`；手动编辑的旧数据可能只有文件名 |
 
 ##### `POST /api/songs/add`
 
@@ -705,11 +709,11 @@ window.MUSIC_SONGS = [
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `id` | 否 | 缺省按标题生成，重复会报错 |
+| `id` | 否 | 缺省为 `song-<时间戳>`，重复会报错 |
 | `title` | 是 | 歌名 |
-| `artist` | 否 | 歌手 |
-| `file` | 是 | 必须是 `album/` 下真实存在的音频 |
-| `cover` | 否 | 必须是 `album/cover/` 下真实存在的图片 |
+| `artist` | 是 | 歌手 |
+| `file` | 是 | 必须是 `album/` 下真实存在的 mp3 / ogg / wav / m4a / flac / aac |
+| `cover` | 是 | 必须是 `album/cover/` 下真实存在的图片；传文件名或 `album/cover/xxx.jpg` 均可，保存后统一为带前缀路径 |
 
 **出参**：`{ "ok": true, "song": {...}, "songs": [...], "audioFiles": [...], "coverFiles": [...] }`
 
@@ -1077,6 +1081,271 @@ curl -X POST https://你的域名/api/qa \
   -H 'x-qa-token: 你的QA_ADMIN_TOKEN' \
   -d '{"action":"answer","id":"m3x1-ab12cd34","answer":"用 Cloudflare Pages 部署的。"}'
 ```
+
+### 使用示例汇总
+
+下面示例默认本地服务运行在 `127.0.0.1:8765`，站点运行时接口部署在 `https://your-site.pages.dev`。所有本地接口都没有鉴权，仅在个人电脑上使用。
+
+#### 示例 1：从零建站并完成首次部署
+
+```bash
+# 1. 生成站点并绑定仓库（自动初始化 git、创建首个提交；不会自动推送）
+curl -X POST http://127.0.0.1:8765/api/site/init \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "path": "/Users/me/site",
+    "name": "我的个人站",
+    "subtitle": "ME / PERSONAL SITE",
+    "author": "小明",
+    "intro": "记录技术与生活。",
+    "welcome": "欢迎来到我的个人站。",
+    "githubUrl": "https://github.com/me",
+    "contact": "me@example.com",
+    "repoUrl": "https://github.com/me/my-site.git"
+  }'
+
+# 2. 确认站点状态（exists / isRepo / branch / remote）
+curl http://127.0.0.1:8765/api/site
+
+# 3. 首次发布，自动执行 git push -u origin HEAD
+curl -X POST http://127.0.0.1:8765/api/publish \
+  -H 'Content-Type: application/json' \
+  -d '{"confirm":true,"scope":"all","message":"初始化站点"}'
+```
+
+`path` 必须是空目录或不存在；已有文件会返回 400。之后在 Cloudflare Pages 连接该仓库即可自动部署。
+
+#### 示例 2：新建文章、上传图片、发布
+
+```bash
+# 1. 新建文章，slug 固定为 first-post
+curl -X POST http://127.0.0.1:8765/api/post/create \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"第一篇","date":"2026-11-19","slug":"first-post","category":"随笔","summary":"你好"}'
+
+# 2. 保存正文（title 必填；不传 content 会清空正文，见注意事项）
+curl -X POST 'http://127.0.0.1:8765/api/post/save?slug=first-post' \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"第一篇","date":"2026-11-19","category":"随笔","summary":"你好","content":"# 你好\n\n正文内容"}'
+
+# 3. 上传图片，返回可直接插入正文的 Markdown
+curl -X POST 'http://127.0.0.1:8765/api/upload?slug=first-post&name=cover.png' \
+  --data-binary '@./cover.png'
+
+# 4. 只发布博客相关改动
+curl -X POST http://127.0.0.1:8765/api/publish \
+  -H 'Content-Type: application/json' \
+  -d '{"confirm":true,"scope":"blog","message":"新增第一篇"}'
+```
+
+上传成功后的返回：
+
+```json
+{
+  "ok": true,
+  "name": "cover.png",
+  "markdown": "![cover](images/cover.png)",
+  "url": "/blog/posts/first-post/images/cover.png",
+  "size": 20480
+}
+```
+
+把 `markdown` 拼进正文后再保存一次即可。
+
+#### 示例 3：添加歌曲并发布
+
+```bash
+# 1. 上传音频（只收 mp3，≤100MB；自动读取 ID3 歌名、歌手与内嵌封面）
+curl -X POST 'http://127.0.0.1:8765/api/song/upload?kind=audio&name=track.mp3' \
+  --data-binary '@./track.mp3'
+
+# 2. 没有内嵌封面时再单独上传封面（png / jpg / gif / webp / svg / avif，≤20MB）
+curl -X POST 'http://127.0.0.1:8765/api/song/upload?kind=cover&name=cover.jpg' \
+  --data-binary '@./cover.jpg'
+
+# 3. 写入歌单：artist、cover 必填，file / cover 必须已存在于 album/ 与 album/cover/
+curl -X POST http://127.0.0.1:8765/api/songs/add \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"song-1","title":"曲名","artist":"歌手","file":"track.mp3","cover":"cover.jpg"}'
+
+# 4. 调整顺序（ids 必须与现有歌曲一一对应），再发布歌曲
+curl -X POST http://127.0.0.1:8765/api/songs/reorder \
+  -H 'Content-Type: application/json' \
+  -d '{"ids":["song-1"]}'
+
+curl -X POST http://127.0.0.1:8765/api/publish \
+  -H 'Content-Type: application/json' \
+  -d '{"confirm":true,"scope":"songs","message":"新增歌曲"}'
+```
+
+`songs/add` 写入后的 `cover` 统一为 `album/cover/cover.jpg`，前端直接当相对路径使用。
+
+#### 示例 4：JavaScript 调用封装（本地 API）
+
+```js
+const base = 'http://127.0.0.1:8765';
+
+async function call(path, options = {}) {
+  const res = await fetch(base + path, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
+// 读取文章列表
+const { posts, stale } = await call('/api/posts');
+
+// 保存文章
+await call('/api/post/save?slug=first-post', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    title: '第一篇',
+    date: '2026-11-19',
+    content: '# 你好\n\n正文',
+  }),
+});
+
+// 上传图片（body 直接传 File / Blob）
+const file = document.querySelector('#fileInput').files[0];
+const uploaded = await call(
+  `/api/upload?slug=first-post&name=${encodeURIComponent(file.name)}`,
+  { method: 'POST', headers: { 'Content-Type': file.type }, body: file },
+);
+console.log(uploaded.markdown);
+```
+
+#### 示例 5：Python 调用（标准库，无需第三方依赖）
+
+```python
+import json
+import urllib.request
+
+def post(path, payload):
+    req = urllib.request.Request(
+        f"http://127.0.0.1:8765{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as res:
+        return json.load(res)
+
+print(post("/api/build", {}))
+```
+
+#### 示例 6：调整首页模块与站点文案
+
+```bash
+# 只保留介绍、归档、音乐、问答，并调整顺序
+curl -X POST http://127.0.0.1:8765/api/layout \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "modules": [
+      {"id":"intro","enabled":true,"title":"我的个人站","text":"记录技术与生活。"},
+      {"id":"archive","enabled":true,"title":"文章归档","count":0},
+      {"id":"music","enabled":true,"title":"音乐专辑","text":"最近在听。","count":4},
+      {"id":"qa","enabled":true,"title":"问答精选","text":"访客提问与站长的回答。","count":3}
+    ]
+  }'
+
+# 修改站点名称与页脚链接
+curl -X POST http://127.0.0.1:8765/api/site-config \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "brand":"我的个人站",
+    "brandSub":"ME / SITE",
+    "nav":[{"id":"blog","label":"博客"},{"id":"qa","label":"问答"},{"id":"music","label":"音乐"}],
+    "footer":{"copyright":"© 2026 我的个人站","github":"GitHub","githubUrl":"https://github.com/me","contact":"联系","contactUrl":"mailto:me@example.com"}
+  }'
+```
+
+`nav` 只会更新内置导航项的文案，不会新增、删除或排序导航；`id` 只认 `blog`、`qa`、`music`、`dev`。
+
+#### 示例 7：站点前端调用计数与问答
+
+```js
+// 访问计数 +1
+const { count } = await fetch('/api/counter?key=visits', { method: 'POST' })
+  .then((res) => res.json());
+
+// 提问
+const result = await fetch('/api/qa', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'ask', name: '访客', question: '这个站点怎么部署的？' }),
+}).then((res) => res.json());
+
+if (!result.ok) console.warn(result.error, result.canAsk);
+```
+
+#### 示例 8：配置问答并回答
+
+```bash
+# 1. Cloudflare 配置好 COUNTERS 与 QA_ADMIN_TOKEN 后，保存连接
+curl -X POST http://127.0.0.1:8765/api/qa/config \
+  -H 'Content-Type: application/json' \
+  -d '{"qaUrl":"https://your-site.pages.dev","qaToken":"你的QA_ADMIN_TOKEN"}'
+
+# 2. 拉取待回答列表
+curl http://127.0.0.1:8765/api/qa
+
+# 3. 回答某个问题
+curl -X POST http://127.0.0.1:8765/api/qa/answer \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"m3x1-ab12cd34","answer":"用 Cloudflare Pages 部署的。"}'
+```
+
+本地这几个问答接口只是转发到站点 Functions，上游失败时会返回 502 和原始错误信息。
+
+---
+
+### 注意事项
+
+#### 本地建站台 API
+
+1. **仅限本机使用**：服务默认只监听 `127.0.0.1`，接口没有任何鉴权。不要把 `--host` 改成 `0.0.0.0` 暴露到局域网或公网。
+2. **单实例运行**：同一站点不要同时开多个建站台实例，避免并发写同一批文件；端口冲突可用 `--port` 或 `PORT` 修改。
+3. **保存会覆盖整篇**：`/api/post/save` 必须带 `title`（否则 400），元信息与正文以请求体为准；`content` 缺省或为空串会清空正文，`category`、`summary` 缺省也会被清空，只想改标题时也要把原正文一起传回。
+4. **日期格式严格**：`date` 必须是 `YYYY-MM-DD`，否则返回 400；slug 只允许字母、数字、`-`、`_`；指定 slug 重复时返回 409。
+5. **上传前先落盘**：`/api/upload` 要求文章已经是目录式文章（`blog/posts/<slug>/index.md`），未保存的新文章会返回 409。
+6. **文件名会被清洗**：上传文件名中的特殊字符会替换为 `-`，重名自动追加 `-2`、`-3`；返回的 `markdown` 已使用相对路径，直接插入即可。
+7. **上传是二进制 body**：不要用 JSON 包装文件内容；`name` 放在 query 中，`Content-Type` 建议设置为真实 MIME 类型。图片 ≤20MB；歌曲上传接口只收 mp3 且 ≤100MB。
+8. **歌曲字段有硬性要求**：`/api/songs/add` 的 `title`、`artist`、`cover` 均必填，`file` 必须是 `album/` 下真实存在的 mp3 / ogg / wav / m4a / flac / aac，`cover` 必须在 `album/cover/` 下真实存在。`cover` 传裸文件名或 `album/cover/xxx.jpg` 都可以（服务端取文件名），返回值统一带 `album/cover/` 前缀。
+9. **`posts-data.js` 不要手改**：新建、保存、删除文章都会自动重建；单独调用 `/api/build` 只做重建，不提交、不推送。
+10. **发布必须显式确认**：`confirm` 不是 `true` 直接返回 403；`scope` 支持 `blog`、`songs`、`layout`、`site`、`all`，发布前建议先看 `GET /api/status` 的 `blogChanges` 与 `otherCount`。
+11. **首次推送会建立跟踪**：没有 upstream 时自动 `git push -u origin HEAD`；没有配置远程仓库会返回错误，先在「站点」页或 `/api/site/remote` 保存地址。
+12. **站点必须是独立仓库**：建站台禁止 git 向上查找父仓库。若站点目录位于其他仓库内部但自身没有 `.git`，会被当作「不是仓库」，避免误提交上层项目。
+13. **推送依赖本机 git**：凭据、SSH key、代理都由本机 git 决定；如果浏览器能访问 GitHub 但推送超时，需要先给 git 配置代理。
+14. **布局 id 固定**：`/api/layout` 只认 `intro`、`notice`、`archive`、`music`、`qa`，未知或重复 id 会被忽略，数组顺序即首页展示顺序；全部被忽略时返回 400「板块列表为空」。
+15. **站点配置按字段合并**：`/api/site-config` 只更新传入的字段，未传字段保持原值；但传入空字符串会回退成默认文案。`nav` 会过滤掉没有 `label` 的项，`id` 不做校验——实际只认 `blog`、`qa`、`music`、`dev`，未知 id 不会报错但也不会生效，导航顺序固定在 `index.html` 里。
+16. **令牌文件不要提交**：问答配置保存在项目根 `.studio-config.json`（权限 600），已加入 `.gitignore`，不要手动复制进站点仓库。
+
+#### 站点运行时 API
+
+1. **必须绑定 KV**：`COUNTERS` 未绑定时所有接口返回 500 `binding missing`；问答与计数共用同一个命名空间。
+2. **计数的 key 规则**：1–80 位，仅字母、数字、`:`、`_`、`-`；以 `qa:` 开头的 key 会被拒绝，避免覆盖问答数据。
+3. **计数非原子**：KV 采用读改写，高并发下可能少计；个人站足够用，不要当作精确统计。
+4. **计数不会自动清零**：`visits`、点赞、播放次数会持续累积；需要重置时调用 `/api/reset`，该接口默认跳过 `qa:` 前缀的数据。
+5. **重置令牌要妥善保管**：`RESET_TOKEN` 只放在环境变量里，优先用请求头 `x-reset-token` 传递，避免出现在访问日志和浏览器历史中。
+6. **问答身份基于 Cookie**：访客 ID 存在 Cookie 中，清 Cookie 或换浏览器可以绕过「每天一条提问」「只能赞一次」的限制，这不是强安全机制。
+7. **长度与频率限制**：问题 2–500 字、昵称 ≤30 字（超长截断）、回答 1–2000 字；当天重复提问返回 429，限制按上海时区计算，次日零点重置。
+8. **未回答问题的可见性**：公开接口只返回已回答的问题，以及当前访客自己提出的未回答问题；其他人看不到待回答内容。
+9. **点赞仅限已回答**：未回答的问题点赞返回 400；重复点赞返回 409，并带回当前点赞数。
+10. **管理接口必须带令牌**：`admin=1`、`answer`、`delete` 需要 `x-qa-token` 或 `Authorization: Bearer`；令牌错误返回 403，未配置 `QA_ADMIN_TOKEN` 返回 500。
+11. **跨域限制**：Functions 响应没有开启 CORS，浏览器端请与站点同源调用；脚本 / curl 调用不受影响。
+12. **响应不缓存**：计数与问答接口均返回 `cache-control: no-store`，不要在前面加 CDN 缓存规则。
+13. **纯静态托管不可用**：GitHub Pages 只托管静态文件，计数、点赞、问答会失败；需要这些功能请使用 Cloudflare Pages 并绑定 KV。
+14. **问题数量上限**：管理端一次最多读取 1000 条问题（KV list 限制），数据量更大时需要分页处理。
+
+#### 安全建议
+
+- 建站台只在本机使用，用完可以关闭；不要在公共电脑上保存问答令牌。
+- 部署后立即在 Cloudflare 配置 `QA_ADMIN_TOKEN`，并设置一个随机的 `RESET_TOKEN`。
+- 不要把 `.studio-config.json`、Cloudflare 令牌、`gh` 凭据提交到任何仓库。
+- 公开的问答接口建议配合平台的速率限制 / WAF 使用，避免被批量灌水。
 
 ### 配置项总表
 
